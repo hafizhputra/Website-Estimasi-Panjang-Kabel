@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Estimasi Kabel Rack – Layout Asli</title>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        padding: 20px;
+      }
+
+      input {
+        padding: 6px;
+        width: 130px;
+      }
+      button {
+        padding: 6px 14px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(20, 70px);
+        gap: 6px;
+        margin-top: 20px;
+      }
+
+      /* KOTAK PUTIH (RACK) */
+      .cell {
+        width: 70px;
+        height: 70px;
+        background: #fff;
+        border: 1px solid #999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        text-align: center;
+      }
+
+      /* NAMA RACK */
+      .rack-name {
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      /* KOTAK KUNING (JALUR) */
+      .path-box {
+        width: 38px;
+        height: 38px;
+        background: #ffeb3b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+      }
+
+      /* STATUS */
+      .start .path-box {
+        background: #2196f3;
+        color: #fff;
+      }
+      .end .path-box {
+        background: #f44336;
+        color: #fff;
+      }
+      .path .path-box {
+        background: #4caf50;
+        color: #fff;
+      }
+
+      .result {
+        margin-top: 10px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Estimasi Panjang Kabel Antar Rack</h3>
+
+    <input id="rackA" placeholder="0.3" />
+    <input id="rackB" placeholder="7.3" />
+    <button onclick="hitung()">Hitung</button>
+
+    <div class="result" id="hasil"></div>
+    <div class="grid" id="grid"></div>
+
+    <script>
+      const ROWS = 33;
+      const COLS = 20;
+      const SIZE = 60;
+
+      // baris jalur kuning horizontal
+      const yellowRows = [0, 4, 7, 11, 14, 19, 23, 29, 31];
+
+      /* ===== NAMA RACK (PUTIH) – SESUAI GAMBAR ===== */
+      const rackNameMap = {
+        '0-0': 'Rack R0-13',
+        '0-10': 'Rack R0-14',
+        '0-1': 'Rack R0-15',
+        '0-2': 'Rack R0-16',
+        '0-9': 'Rack R0-17',
+        '0-3': 'Rack R0-18',
+        '0-8': 'Rack R0-19',
+        '0-4': 'Rack R0-20',
+        '0-7': 'Rack R0-21',
+
+        '3-1': 'Rack R10-8',
+        '3-2': 'Rack R10-7',
+        '3-3': 'Rack R10-6',
+
+        '5-8': 'Rack R9-1',
+        '5-7': 'Rack R9-2',
+        '5-6': 'Rack R9-3',
+        '5-5': 'Rack R9-4',
+        '5-4': 'Rack R9-5',
+        '5-3': 'Rack R9-6',
+        '5-2': 'Rack R9-7',
+        '5-1': 'Rack R9-8',
+
+        '8-8': 'Rack R8-1',
+        '8-7': 'Rack R8-2',
+        '8-6': 'Rack R8-3',
+        '8-5': 'Rack R8-4',
+        '8-4': 'Rack R8-5',
+        '8-3': 'Rack R8-6',
+        '8-2': 'Rack R8-7',
+        '8-1': 'Rack R8-8',
+
+        '11-9': 'Rack R7-X',
+        '11-8': 'Rack R7-1',
+        '11-7': 'Rack R7-2',
+        '11-6': 'Rack R7-3',
+        '11-5': 'Rack R7-4',
+        '11-4': 'Rack R7-5',
+        '11-3': 'Rack R7-6',
+        '11-2': 'Rack R7-7',
+        '11-1': 'Rack R7-8',
+
+        '14-8': 'Rack R6-1',
+        '14-7': 'Rack R6-2',
+        '14-6': 'Rack R6-3',
+        '14-5': 'Rack R6-4',
+        '14-4': 'Rack R6-5',
+        '14-3': 'Rack R6-6',
+        '14-2': 'Rack R6-7',
+        '14-1': 'Rack R6-8',
+
+        '18-8': 'Rack R5-1',
+        '18-7': 'Rack R5-2',
+        '18-6': 'Rack R5-3',
+        '18-5': 'Rack R5-4',
+        '18-4': 'Rack R5-5',
+        '18-3': 'Rack R5-6',
+        '18-2': 'Rack R5-7',
+        '18-1': 'Rack R5-8',
+
+        '20-8': 'Rack R4-1',
+        '20-7': 'Rack R4-2',
+        '20-6': 'Rack R4-3',
+        '20-5': 'Rack R4-4',
+        '20-4': 'Rack R4-5',
+        '20-3': 'Rack R4-6',
+        '20-2': 'Rack R4-7',
+        '20-1': 'Rack R4-8',
+
+        '23-1': 'Rack R3-8',
+        '23-2': 'Rack R3-7',
+        '23-3': 'Rack R3-6',
+        '23-4': 'Rack R3-5',
+        '23-5': 'Rack R3-4',
+        '23-6': 'Rack R3-3',
+        '23-7': 'Rack R3-2',
+        '23-8': 'Rack R3-1',
+
+        '28-1': 'Rack R2-8',
+        '28-2': 'Rack R2-7',
+        '28-3': 'Rack R2-6',
+        '28-4': 'Rack R2-5',
+        '28-5': 'Rack R2-4',
+        '28-6': 'Rack R2-3',
+        '28-7': 'Rack R2-2',
+        '28-8': 'Rack R2-1',
+
+        '30-1': 'Pintu 2',
+        '30-3': 'Rack R0-3',
+        '30-4': 'Jalur kabel R0-3 Dan R0-10',
+        '30-5': 'Rack R0-10',
+        '30-6': 'Rack R0-9',
+        '30-7': 'Rack R0-1',
+        '30-8': 'Rack R0-2',
+        '30-9': 'Jalur kabel R0-1 Dan R0-2',
+        '30-10': 'Pintu 1',
+        '32-1': 'Rack R0-12',
+        '32-3': 'Rack R0-11',
+        '32-4': 'Rack R0-8',
+        '32-5': 'Rack R0-7',
+        '32-7': 'Rack R0-4',
+        '32-8': 'Rack R0-5',
+        '32-10': 'Rack R0-6',
+      };
+
+      const gridEl = document.getElementById('grid');
+      let map = [];
+
+      function buildGrid() {
+        gridEl.innerHTML = '';
+        map = [];
+        for (let r = 0; r < ROWS; r++) {
+          map[r] = [];
+          for (let c = 0; c < COLS; c++) {
+            const isPath = c === 0 || yellowRows.includes(r);
+            map[r][c] = isPath;
+
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.id = `c-${r}-${c}`;
+
+            // NAMA RACK DI PUTIH
+            const rackName = document.createElement('div');
+            rackName.className = 'rack-name';
+            rackName.innerText = rackNameMap[`${r}-${c}`] || '';
+            cell.appendChild(rackName);
+
+            // KOTAK KUNING JALUR
+            if (isPath) {
+              const path = document.createElement('div');
+              path.className = 'path-box';
+              path.innerText = c === 0 ? r : `${r}.${c}`;
+              cell.appendChild(path);
+            }
+
+            gridEl.appendChild(cell);
+          }
+        }
+      }
+
+      buildGrid();
+
+      /* BFS */
+      function bfs(s, e) {
+        const q = [s];
+        const v = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+        const p = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+        v[s.r][s.c] = true;
+
+        const d = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ];
+        while (q.length) {
+          const c = q.shift();
+          if (c.r === e.r && c.c === e.c) break;
+          for (const [dr, dc] of d) {
+            const nr = c.r + dr,
+              nc = c.c + dc;
+            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && map[nr][nc] && !v[nr][nc]) {
+              v[nr][nc] = true;
+              p[nr][nc] = c;
+              q.push({ r: nr, c: nc });
+            }
+          }
+        }
+        const path = [];
+        for (let x = e; x; x = p[x.r][x.c]) path.push(x);
+        return path.reverse();
+      }
+
+      function hitung() {
+        buildGrid();
+        const [ar, ac] = rackA.value.split('.').map(Number);
+        const [br, bc] = rackB.value.split('.').map(Number);
+
+        const path = bfs({ r: ar, c: ac }, { r: br, c: bc });
+        path.forEach((p) => document.getElementById(`c-${p.r}-${p.c}`).classList.add('path'));
+
+        document.getElementById(`c-${ar}-${ac}`).classList.add('start');
+        document.getElementById(`c-${br}-${bc}`).classList.add('end');
+
+        const kotak = path.length + 1;
+        const kotakkurang = kotak - 1;
+        const kotakbaru = kotakkurang;
+        const panjangAwal = kotakbaru * SIZE;
+        const panjangBaru = panjangAwal + 400;
+
+        hasil.innerHTML = `
+    Dari: ${rackNameMap[`${ar}-${ac}`] || `${ar}.${ac}`}<br>
+    Ke: ${rackNameMap[`${br}-${bc}`] || `${br}.${bc}`}<br><br>
+    Total kotak jalur: ${kotakkurang}<br>
+    Panjang kabel: ${kotakbaru * SIZE} cm (${(kotakbaru * SIZE) / 100} m)<br><br>
+    Panjang kabel + tinggi kedua sisi rack (4 meter): ${panjangBaru } cm (${(panjangBaru ) / 100} m)
+  `;
+      }
+    </script>
+  </body>
+</html>
